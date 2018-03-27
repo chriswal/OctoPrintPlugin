@@ -134,6 +134,10 @@ class OctoPrintOutputDevice(PrinterOutputDevice):
         self._preheat_timer.setSingleShot(True)
         self._preheat_timer.timeout.connect(self.cancelPreheatBed)
 
+        self._printer_on_timer = QTimer()
+        self._printer_on_timer.setSingleShot(True)
+        self._printer_on_timer.timeout.connect(self.startPrint)
+
     def getProperties(self):
         return self._properties
 
@@ -321,11 +325,10 @@ class OctoPrintOutputDevice(PrinterOutputDevice):
         active_build_plate = Application.getInstance().getBuildPlateModel().activeBuildPlate
         scene = Application.getInstance().getController().getScene()
         gcode_dict = getattr(scene, "gcode_dict", None)
-        if not gcode_dict:
-            return
-        self._gcode = gcode_dict.get(active_build_plate, None)
-
-        self.startPrint()
+        if self.jobState == "offline":
+            self.turnOnPrinter()
+        else:
+            self.startPrint()
 
     def isConnected(self):
         return self._connection_state != ConnectionState.closed and self._connection_state != ConnectionState.error
@@ -378,6 +381,23 @@ class OctoPrintOutputDevice(PrinterOutputDevice):
 
         if command:
             self._sendJobCommand(command)
+
+
+
+    def checkPsucontrol(self):
+        Logger.log("d", "Check for psucontrol plugin ")
+        self._psuState_reply = self._sendCommandToApi("plugin/psucontrol", "getPSUState")
+
+
+    def turnOnPrinter(self):
+        self._sendCommandToApi("plugin/psucontrol", "turnPSUOn")
+        Logger.log("d", "Turn Printer On command")
+        self._printer_on_timer.setInterval(15000)
+        self._printer_on_timer.start()
+
+    def turnOffPrinter(self):
+        self._sendCommandToApi("plugin/psucontrol", "turnPSUOff")
+        Logger.log("d", "Turn Printer Off command")
 
     def startPrint(self):
         global_container_stack = Application.getInstance().getGlobalContainerStack()
