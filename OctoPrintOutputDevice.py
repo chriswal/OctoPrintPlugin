@@ -325,6 +325,9 @@ class OctoPrintOutputDevice(PrinterOutputDevice):
         active_build_plate = Application.getInstance().getBuildPlateModel().activeBuildPlate
         scene = Application.getInstance().getController().getScene()
         gcode_dict = getattr(scene, "gcode_dict", None)
+        if not gcode_dict:
+            return
+        self._gcode = gcode_dict.get(active_build_plate, None)
         if self.jobState == "offline":
             self.turnOnPrinter()
         else:
