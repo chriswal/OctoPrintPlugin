@@ -328,7 +328,8 @@ class OctoPrintOutputDevice(PrinterOutputDevice):
         if not gcode_dict:
             return
         self._gcode = gcode_dict.get(active_build_plate, None)
-        if self.jobState == "offline":
+        self._octoprint_psu_control = parseBool(global_container_stack.getMetaDataEntry("octoprint_psu_control", True))
+        if self.jobState == "offline" and self._octoprint_psu_control:
             self.turnOnPrinter()
         else:
             self.startPrint()
@@ -395,7 +396,7 @@ class OctoPrintOutputDevice(PrinterOutputDevice):
     def turnOnPrinter(self):
         self._sendCommandToApi("plugin/psucontrol", "turnPSUOn")
         Logger.log("d", "Turn Printer On command")
-        self._printer_on_timer.setInterval(15000)
+        self._printer_on_timer.setInterval(15*1000)
         self._printer_on_timer.start()
 
     def turnOffPrinter(self):
