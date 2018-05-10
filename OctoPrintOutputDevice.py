@@ -315,7 +315,7 @@ class OctoPrintOutputDevice(NetworkedPrinterOutputDevice):
 
 
         self._octoprint_psu_control = parseBool(global_container_stack.getMetaDataEntry("octoprint_psu_control", False))
-        if self.jobState == "offline" and self._octoprint_psu_control:
+        if self.activePrinter.state == "offline" and self._octoprint_psu_control:
             self.turnOnPrinter()
         else:
             self.startPrint()
