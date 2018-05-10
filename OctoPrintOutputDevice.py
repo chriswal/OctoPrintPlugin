@@ -120,6 +120,10 @@ class OctoPrintOutputDevice(NetworkedPrinterOutputDevice):
         self._update_timer.setSingleShot(False)
         self._update_timer.timeout.connect(self._update)
 
+        self._printer_on_timer = QTimer()
+        self._printer_on_timer.setSingleShot(True)
+        self._printer_on_timer.timeout.connect(self.startPrint)
+
         self._camera_mirror = ""
         self._camera_rotation = 0
         self._camera_url = ""
@@ -305,7 +309,16 @@ class OctoPrintOutputDevice(NetworkedPrinterOutputDevice):
             return
         self._gcode = gcode_dict.get(active_build_plate, None)
 
-        self.startPrint()
+        global_container_stack = Application.getInstance().getGlobalContainerStack()
+        if not global_container_stack:
+            return
+
+
+        self._octoprint_psu_control = parseBool(global_container_stack.getMetaDataEntry("octoprint_psu_control", False))
+        if self.jobState == "offline" and self._octoprint_psu_control:
+            self.turnOnPrinter()
+        else:
+            self.startPrint()
 
     ##  Start requesting data from the instance
     def connect(self):
@@ -382,6 +395,23 @@ class OctoPrintOutputDevice(NetworkedPrinterOutputDevice):
             self._error_message.hide()
         self._forced_queue = True
         self._startPrint()
+
+
+    def checkPsucontrol(self):
+        Logger.log("d", "Check for psucontrol plugin ")
+        self._psuState_reply = self._sendCommandToApi("plugin/psucontrol", "getPSUState")
+
+
+    def turnOnPrinter(self):
+        self._sendCommandToApi("plugin/psucontrol", "turnPSUOn")
+        Logger.log("d", "Turn Printer On command")
+        self._printer_on_timer.setInterval(15000)
+        self._printer_on_timer.start()
+
+    def turnOffPrinter(self):
+        self._sendCommandToApi("plugin/psucontrol", "turnPSUOff")
+        Logger.log("d", "Turn Printer Off command")
+
 
     def _startPrint(self):
         if self._auto_print and not self._forced_queue:
